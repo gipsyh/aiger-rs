@@ -41,8 +41,10 @@ pub struct Header {
     pub o: usize,
     /// The number of AND gates.
     pub a: usize,
-    /// The bad state
+    /// The bad state.
     pub b: usize,
+    /// The invariant constraints.
+    pub c: usize,
 }
 
 impl FromStr for Header {
@@ -74,13 +76,25 @@ impl FromStr for Header {
             Ok(b) => b,
             Err(_) => 0,
         };
+        let c = match get_component() {
+            Ok(c) => c,
+            Err(_) => 0,
+        };
 
         if components.next() != None {
             // We have extra components after what should've been the last
             // component
             Err(AigerError::InvalidHeader)
         } else {
-            Ok(Header { m, i, l, o, a, b })
+            Ok(Header {
+                m,
+                i,
+                l,
+                o,
+                a,
+                b,
+                c,
+            })
         }
     }
 }
@@ -114,6 +128,8 @@ pub enum Aiger {
     Output(Literal),
     /// A literal marked as a bad state.
     BadState(Literal),
+    /// A literal marked as a invariant constraint.
+    Constraint(Literal),
     /// An AND gate.
     AndGate {
         /// The literal which receives the result of the AND operation.
@@ -177,6 +193,7 @@ impl Aiger {
             } => vec![output, input, Literal(init.into())],
             Aiger::Output(l) => vec![l],
             Aiger::BadState(l) => vec![l],
+            Aiger::Constraint(l) => vec![l],
             Aiger::AndGate {
                 output,
                 inputs: [input0, input1],
@@ -226,6 +243,13 @@ impl Aiger {
     fn parse_badstate(literals: &[Literal]) -> Result<Aiger, AigerError> {
         match literals {
             [input] => Ok(Aiger::BadState(*input)),
+            _ => Err(AigerError::InvalidLiteralCount),
+        }
+    }
+
+    fn parse_constraint(literals: &[Literal]) -> Result<Aiger, AigerError> {
+        match literals {
+            [input] => Ok(Aiger::Constraint(*input)),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
@@ -364,8 +388,10 @@ pub struct RecordsIter<T: io::Read> {
     remaining_outputs: usize,
     /// Number of AND gates which are yet to be parsed.
     remaining_and_gates: usize,
-    /// Number of AND gates which are yet to be parsed.
+    /// Number of bad states which are yet to be parsed.
     remaining_bad_states: usize,
+    /// Number of constraints which are yet to be parsed.
+    remaining_constraints: usize,
     /// True if we have reached a comment in the file.
     comment_reached: bool,
 }
@@ -380,6 +406,7 @@ impl<T: io::Read> RecordsIter<T> {
             remaining_outputs: header.o,
             remaining_and_gates: header.a,
             remaining_bad_states: header.b,
+            remaining_constraints: header.c,
             comment_reached: false,
         }
     }
@@ -405,6 +432,9 @@ impl<T: io::Read> RecordsIter<T> {
         } else if self.remaining_bad_states > 0 {
             self.remaining_bad_states -= 1;
             Aiger::parse_badstate(&get_literals()?)
+        } else if self.remaining_constraints > 0 {
+            self.remaining_constraints -= 1;
+            Aiger::parse_constraint(&get_literals()?)
         } else if self.remaining_and_gates > 0 {
             self.remaining_and_gates -= 1;
             Aiger::parse_and_gate(&get_literals()?)
@@ -539,6 +569,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -567,6 +598,7 @@ mod tests {
                 o: 1,
                 a: 1,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -596,6 +628,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -621,6 +654,7 @@ mod tests {
                 o: 0,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -646,6 +680,7 @@ mod tests {
                 o: 0,
                 a: 1,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -671,6 +706,7 @@ mod tests {
                 o: 0,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -697,6 +733,7 @@ mod tests {
                 o: 0,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -724,6 +761,7 @@ mod tests {
                 o: 0,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -751,6 +789,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -779,6 +818,7 @@ mod tests {
                 o: 1,
                 a: 1,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -807,6 +847,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -834,6 +875,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -861,6 +903,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -888,6 +931,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -913,6 +957,7 @@ mod tests {
                 o: 0,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -938,6 +983,7 @@ mod tests {
                 o: 1,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -964,6 +1010,7 @@ mod tests {
                 o: 0,
                 a: 0,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -993,6 +1040,7 @@ mod tests {
                 o: 1,
                 a: 1,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -1031,6 +1079,7 @@ mod tests {
                 o: 1,
                 a: 1,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -1078,6 +1127,7 @@ mod tests {
                 o: 2,
                 a: 3,
                 b: 0,
+                c: 0,
             }
         );
 
@@ -1173,6 +1223,7 @@ mod tests {
                 o: 2,
                 a: 4,
                 b: 0,
+                c: 0,
             }
         );
 
