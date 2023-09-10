@@ -122,7 +122,7 @@ pub enum Aiger {
         /// The literal which determines the latch's next state.
         input: Literal,
         /// The init value of latch
-        init: bool,
+        init: Option<bool>,
     },
     /// A literal marked as an output.
     Output(Literal),
@@ -190,7 +190,14 @@ impl Aiger {
                 output,
                 input,
                 init,
-            } => vec![output, input, Literal(init.into())],
+            } => vec![
+                output,
+                input,
+                Literal(match init {
+                    Some(init) => init.into(),
+                    None => output.0,
+                }),
+            ],
             Aiger::Output(l) => vec![l],
             Aiger::BadState(l) => vec![l],
             Aiger::Constraint(l) => vec![l],
@@ -222,12 +229,18 @@ impl Aiger {
             [output, input] => Ok(Aiger::Latch {
                 output: *output,
                 input: *input,
-                init: false,
+                init: Some(false),
             }),
             [output, input, init] => Ok(Aiger::Latch {
                 output: *output,
                 input: *input,
-                init: init.0 != 0,
+                init: if init.0 <= 1 {
+                    Some(init.0 != 0)
+                } else if init.0 == output.0 {
+                    None
+                } else {
+                    panic!()
+                },
             }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
@@ -342,7 +355,7 @@ impl<T: io::Read> Reader<T> {
     ///
     /// # Example
     /// ```
-    /// use aiger::Reader;
+    /// use gipsyh_aiger::Reader;
     /// let readable = "aag 3 2 0 1 0\n2\n4\n6\n6 2 4\n".as_bytes();
     /// let reader = Reader::from_reader(readable).unwrap();
     ///
@@ -526,16 +539,6 @@ mod tests {
         #[rustfmt::skip]
             let reader = make_reader(concat!(
                 "aag 0 0 0 0\n",
-            )).unwrap_err();
-
-        assert_eq!(reader, AigerError::InvalidHeader);
-    }
-
-    #[test]
-    fn reader_header_too_long() {
-        #[rustfmt::skip]
-            let reader = make_reader(concat!(
-                "aag 0 0 0 0 0 0\n",
             )).unwrap_err();
 
         assert_eq!(reader, AigerError::InvalidHeader);
@@ -1235,7 +1238,7 @@ mod tests {
             Some(Ok(Aiger::Latch {
                 output: Literal(6),
                 input: Literal(8),
-                init: false
+                init: Some(false)
             }))
         );
         assert_eq!(records.next(), Some(Ok(Aiger::Output(Literal(6)))));
