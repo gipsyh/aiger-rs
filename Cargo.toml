@@ -1,0 +1,13 @@
+[package]
+name = "gipsyh-aiger"
+version = "0.3.0"
+description = "AIGER (And-Inverter graph) file format parser"
+keywords = ["aiger", "aig"]
+categories = ["parser-implementations"]
+authors = ["Yuheng Su <gipsyh.icu@gmail.com>"]
+repository = "https://github.com/gipsyh/aiger-rust.git"
+license = "MIT"
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
