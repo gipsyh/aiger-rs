@@ -108,6 +108,8 @@ pub enum Symbol {
     Latch,
     /// The symbol names an output.
     Output,
+    /// The symbol names a bad state.
+    BadState,
 }
 
 /// A record from an AIGER file.
@@ -283,6 +285,7 @@ impl Aiger {
             "i" => Symbol::Input,
             "l" => Symbol::Latch,
             "o" => Symbol::Output,
+            "b" => Symbol::BadState,
             _ => return Err(AigerError::InvalidSymbol),
         };
 
